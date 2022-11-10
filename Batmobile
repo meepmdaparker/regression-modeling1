@@ -1,0 +1,124 @@
+import pandas as pd
+import numpy as np
+from plotnine import *
+import datetime as dt
+import matplotlib.pyplot as plt
+import scipy.stats as ss
+import statsmodels.api as sm
+import statsmodels.formula.api as smf
+
+import time
+
+df = pd.read_csv("https://raw.githubusercontent.com/robertasgabrys/Forecasting/main/Nenana1.csv")
+#df.info()
+#two columns "Year: abd :Date&Time"
+#df.head()
+#df["Date & Time"]
+#need to change the row entries in df["Date & Time"] by eliminating "at"
+df["Date & Time"]
+#df["Date & Time"] = {x.replace('at', '') for x in df["Date & Time"]}
+# new_set = {x.replace('.ex', '').replace('.jpg', '') for x in list_str}
+#data type of the Date & Time column is object not string might need to take that into consideration
+#difference between string and object?
+
+
+
+#df["Date & Time"] = pd.to_datetime(df["Date & Time"])
+#type error with df["Date & Time"]"
+
+df['DateTime'] = df['Year'].astype(str) + ' ' + df['Date & Time']
+
+df['DateTime'] =  pd.to_datetime(df['DateTime'])
+
+df.head()
+df.info()
+
+df['FirstDate']=pd.date_range(start='1/1/1917',periods=87,freq='YS')
+df['KPI']=pd.to_timedelta(df['DateTime']-df['FirstDate']).dt.total_seconds()/(60*60*24)
+( ggplot(df, aes('Year','KPI'))+geom_point())
+
+
+#statistical significance of KPI
+#before and after 1960
+#index for 1960 is 43, we want to include up to 1960 so the index is 44
+ss.ttest_ind(a=df.loc[:42,'KPI'],b=df.loc[43:,'KPI'],equal_var=False,alternative='greater')
+
+#abrupt change
+#mark the time before change and after for TC by marking rows as 0 or 1
+df['Abrupt']=0
+df.loc[43:,'Abrupt']=1
+M1 = smf.ols('KPI~Abrupt', data = df).fit()
+print(M1.summary())
+
+M1.pvalues[1]/2
+
+df['M1']=M1.fittedvalues
+
+#abrupt change graph
+#Red: before 1960; Blue: 1960 and after
+(ggplot(df,aes('Year','KPI',color = 'factor(Abrupt)')) + geom_point() + geom_line(aes('Year','M1')))
+
+#gradual change
+df['Gradual'] = 0
+#1917 to 1959 is 0
+list(range(88))[1:]
+df.iloc[43:,].shape
+df.loc[43:,'Gradual'] = list(range(45))[1:]
+#everything after 1959 is marked as 1 to identify ramp
+
+# Build a regression model to assess the significance of the gradual effect of the intervention
+# Model KPI = b0 + b1*Ramp
+M2 = smf.ols('KPI ~ Gradual',data = df).fit()
+print(M2.summary())
+M2.pvalues[1] / 2
+
+df['M2']= M2.fittedvalues
+
+(ggplot(df,aes('Year','KPI'))+ geom_point()+theme_bw()+geom_point(aes('Year','M2'),color='red')
+)
+
+
+df2 = pd.read_csv("https://raw.githubusercontent.com/robertasgabrys/Forecasting/main/Nenana2.csv")
+
+df2["Date & Time"]
+df2['DateTime'] = df2['Year'].astype(str) + ' ' + df2['Date & Time']
+df2['DateTime'] =  pd.to_datetime(df2['DateTime'])
+df2.head()
+df2.info()
+
+df2['FirstDate']=pd.date_range(start='1/1/1917',periods=105,freq='YS')
+df2['KPI']=pd.to_timedelta(df2['DateTime']-df2['FirstDate']).dt.total_seconds()/(60*60*24)
+( ggplot(df2, aes('Year','KPI'))+geom_point())
+ss.ttest_ind(a=df2.loc[:42,'KPI'],b=df2.loc[43:,'KPI'],equal_var=False,alternative='greater')
+
+#abrupt change
+#mark the time before change and after for TC by marking rows as 0 or 1
+df2['Abrupt']=0
+df2.loc[43:,'Abrupt']=1
+M1 = smf.ols('KPI~Abrupt', data = df2).fit()
+print(M1.summary())
+
+M1.pvalues[1]/2
+df2['M1']=M1.fittedvalues
+
+#abrupt change graph
+#Red: before 1960; Blue: 1960 and after
+(ggplot(df2,aes('Year','KPI',color = 'factor(Abrupt)')) + geom_point() + geom_line(aes('Year','M1')))
+
+#gradual change
+df2['Gradual'] = 0
+#1917 to 1959 is 0
+list(range(106))[1:]
+df2.iloc[43:,].shape
+df2.loc[43:,'Gradual'] = list(range(63))[1:]
+#everything after 1959 is marked as 1 to identify ramp
+df2
+
+# Build a regression model to assess the significance of the gradual effect of the intervention
+# Model KPI = b0 + b1*Ramp
+M2 = smf.ols('KPI ~ Gradual',data = df2).fit()
+print(M2.summary())
+M2.pvalues[1] / 2
+
+df2['M2']= M2.fittedvalues
+
